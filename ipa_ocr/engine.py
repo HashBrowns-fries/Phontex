@@ -2,7 +2,7 @@
 
 import torch
 from PIL import Image
-from typing import Optional, Union, List, Tuple
+from typing import Union, Tuple
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -151,7 +151,6 @@ class IPAOCREngine:
     def _cleanup_latex(self, latex: str) -> str:
         """清理LaTeX格式，提取相关符号"""
         # 移除常见的LaTeX包装
-        import re
 
         # 保留基本数学符号
         cleaned = latex.strip()

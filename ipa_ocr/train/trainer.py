@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 from typing import Optional, Dict, List
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.optim import AdamW, Adam
 from torch.optim.lr_scheduler import (
@@ -16,7 +15,6 @@ from torch.optim.lr_scheduler import (
 from torch.cuda.amp import autocast, GradScaler
 
 from ipa_ocr.model import create_model, CTCLoss
-from ipa_ocr.dataset import collate_fn
 from ipa_ocr.train.config import TrainConfig
 from ipa_ocr.utils.characters import idx_to_char
 

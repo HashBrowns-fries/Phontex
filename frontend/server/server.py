@@ -1,7 +1,5 @@
 """IPA OCR FastAPI backend — TrOCR+LoRA inference + clipboard."""
 import base64
-import sys
-import os
 import io
 from threading import Lock
 from contextlib import asynccontextmanager

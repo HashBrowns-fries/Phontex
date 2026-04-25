@@ -23,9 +23,11 @@ import json
 import time
 import random
 from pathlib import Path
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import multiprocessing as mp
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 import numpy as np
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1.  PHONOLOGICAL INVENTORY
@@ -554,9 +556,6 @@ def augment(img: Image.Image) -> Image.Image:
 # 5.  MAIN GENERATION
 # ─────────────────────────────────────────────────────────────────────────────
 
-from concurrent.futures import ProcessPoolExecutor, as_completed
-import multiprocessing as mp
-
 def _render_one(args):
     """Picklable worker: render one image."""
     (text, fname, font_path, fsize, do_aug, img_size) = args
@@ -643,7 +642,6 @@ def generate_dataset(
         # Inject ~15% no-stress technical IPA terms (aligns with TUM cross-domain)
         tech_n = max(100, int(len(words) * 0.15))
         tech_rng = random.Random(seed + (hash(split) % 1000))
-        tech_start = done
         for i in range(tech_n):
             text = make_technical_term(tech_rng)
             fname = f"tech_{i:05d}_{split[0]}.png"

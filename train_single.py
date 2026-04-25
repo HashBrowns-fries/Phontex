@@ -3,7 +3,9 @@ import os
 os.environ.setdefault("TRANSFORMERS_NO_ADVISORY_WARNINGS", "1")
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
-import json, time, argparse
+import json
+import time
+import argparse
 from pathlib import Path
 import torch
 from torch.amp import autocast, GradScaler
@@ -78,7 +80,7 @@ def main():
 
     device = torch.device("cuda")
     print(f"\n{'='*60}")
-    print(f"TrOCR IPA Fine-tuning — single GPU")
+    print("TrOCR IPA Fine-tuning — single GPU")
     print(f"{'='*60}")
 
     print(f"Loading processor: {MODEL_NAME}")
@@ -171,7 +173,7 @@ def main():
             path = Path(args.output_dir) / "best_model"
             model.save_pretrained(path)
             processor.save_pretrained(path)
-            print(f"  ✓ Best model saved")
+            print("  ✓ Best model saved")
 
         if (epoch + 1) % args.save_interval == 0:
             ckpt = Path(args.output_dir) / f"checkpoint_epoch_{epoch+1}"

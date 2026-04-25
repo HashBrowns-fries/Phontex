@@ -15,17 +15,15 @@ import json
 import time
 import argparse
 from pathlib import Path
-from typing import List
 
 import torch
-import torch.nn as nn
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
 from tqdm import tqdm
 from torch.amp import autocast, GradScaler
 from PIL import Image
-from peft import get_peft_model, LoraConfig, TaskType
+from peft import PeftModel, get_peft_model, LoraConfig, TaskType
 
 from transformers import (
     TrOCRProcessor,
@@ -162,8 +160,6 @@ def train_loop(rank: int, world_size: int, args):
         )
         model = get_peft_model(model, enc_lora)
         if is_main:
-            enc_params = sum(p.numel() for p in model.parameters()
-                           if p.requires_grad and any(n.startswith("encoder.") and "lora_" in n for n, _ in model.named_parameters()))
             print(f"[DoRA] Encoder DoRA: r={args.encoder_lora_rank}, alpha={args.encoder_lora_alpha}, use_dora=True")
 
     # Freeze encoder if NOT using encoder LoRA
@@ -214,7 +210,7 @@ def train_loop(rank: int, world_size: int, args):
         if args.use_encoder_lora:
             print(f"Encoder: DoRA r={args.encoder_lora_rank}, alpha={args.encoder_lora_alpha}")
         else:
-            print(f"Encoder: frozen (ViT pretrained)")
+            print("Encoder: frozen (ViT pretrained)")
         print(f"Decoder: LoRA r={args.lora_rank}, alpha={args.lora_alpha}")
         print(f"Tokenizer: {num_added} IPA tokens added")
         print(f"Train: {len(train_ds)}, Val: {len(val_ds)}")
@@ -261,6 +257,7 @@ def train_loop(rank: int, world_size: int, args):
     # ── Resume from checkpoint ─────────────────────────────────────────
     start_epoch = 0
     ckpt_path = Path(args.output_dir) / "checkpoint.pt"
+    best_model_path = Path(args.output_dir) / "best_model"
     if args.resume and ckpt_path.exists():
         ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
         optimizer.load_state_dict(ckpt["optimizer"])
@@ -269,8 +266,30 @@ def train_loop(rank: int, world_size: int, args):
         start_epoch = ckpt["epoch"] + 1
         best_val_loss = ckpt.get("best_val_loss", float("inf"))
         epochs_no_improve = ckpt.get("epochs_no_improve", 0)
+
+        # Restore model: try checkpoint first, else fall back to best_model/
+        model_state = ckpt.get("model_state", None)
+        if model_state is not None:
+            missing, unexpected = model.module.load_state_dict(model_state, strict=False)
+            if is_main:
+                print(f"[Resume] Model weights restored from checkpoint ({len(model_state)} tensors)")
+                if missing:
+                    print(f"         Missing (non-critical if LoRA keys): {missing[:3]}")
+        elif best_model_path.exists():
+            if is_main:
+                print("[Resume] No model in checkpoint — loading from best_model/")
+            base_tmp = VisionEncoderDecoderModel.from_pretrained(args.model_name)
+            model_tmp = PeftModel.from_pretrained(base_tmp, str(best_model_path))
+            model_tmp = model_tmp.merge_and_unload()
+            merged_state = {k: v for k, v in model_tmp.state_dict().items()}
+            del model_tmp, base_tmp
+            model.module.load_state_dict(merged_state, strict=False)
+            del merged_state
+            if is_main:
+                print("[Resume] Merged weights loaded from best_model/")
+
         if is_main:
-            print(f"[Resume] Loaded checkpoint — resuming from epoch {start_epoch}/{args.num_epochs}")
+            print(f"[Resume] Resuming from epoch {start_epoch}/{args.num_epochs}")
             print(f"         best_val_loss={best_val_loss:.4f}, epochs_no_improve={epochs_no_improve}")
 
     for epoch in range(start_epoch, args.num_epochs):
@@ -307,28 +326,31 @@ def train_loop(rank: int, world_size: int, args):
                 step_log_file.write(line)
                 step_log_file.flush()
 
-        # Validation — rank 0 only
+        # ── Validation — all ranks, then all-reduce ──────────────────
+        model_eval = model.module
+        model_eval.eval()
+        local_val_loss = 0.0
+        with torch.no_grad():
+            for batch in tqdm(val_loader, desc="Val", ncols=80, leave=False, disable=(not is_main)):
+                pv  = batch["pixel_values"].to(device, non_blocking=True)
+                lbl = batch["labels"].to(device, non_blocking=True)
+                with autocast(device_type='cuda'):
+                    out = model_eval(pixel_values=pv, labels=lbl)
+                local_val_loss += out.loss.item()
+        # Global val loss across all ranks
+        global_val_loss = torch.tensor([local_val_loss], dtype=torch.float32, device=device)
+        dist.all_reduce(global_val_loss, op=dist.ReduceOp.SUM)
+        global_val_loss = global_val_loss.item() / world_size
+
+        avg_train = total_loss / len(train_loader)
+        avg_val   = global_val_loss
+        lr_now    = optimizer.param_groups[-1]["lr"]
+
         if is_main:
-            model_eval = model.module
-            model_eval.eval()
-            val_loss = 0
-            with torch.no_grad():
-                for batch in tqdm(val_loader, desc="Val", ncols=80, leave=False):
-                    pv  = batch["pixel_values"].to(device, non_blocking=True)
-                    lbl = batch["labels"].to(device, non_blocking=True)
-                    with autocast(device_type='cuda'):
-                        out = model_eval(pixel_values=pv, labels=lbl)
-                    val_loss += out.loss.item()
-
-            avg_train = total_loss / len(train_loader)
-            avg_val   = val_loss / max(len(val_loader), 1)
-            lr        = optimizer.param_groups[-1]["lr"]  # decoder lr (always present)
-
             log_line = (f"Epoch {epoch+1}/{args.num_epochs} | "
                         f"train_loss={avg_train:.4f} | val_loss={avg_val:.4f} | "
-                        f"lr={lr:.2e}")
+                        f"lr={lr_now:.2e}")
             print(log_line)
-
             with open(Path(args.output_dir) / "train.log", "a") as lf:
                 lf.write(log_line + "\n")
 
@@ -344,20 +366,20 @@ def train_loop(rank: int, world_size: int, args):
                 epochs_no_improve += 1
                 print(f"  No improvement ({epochs_no_improve}/{args.patience})")
 
-            # ── Save checkpoint after each epoch ──────────────────────
+            # ── Checkpoint: merge LoRA into base then save full weights ──
+            merged = model.module.merge_and_unload()
+            merged.save_pretrained(Path(args.output_dir) / "checkpoint_merged")
+            processor.save_pretrained(Path(args.output_dir) / "checkpoint_merged")
+            del merged
             ckpt = {
                 "epoch": epoch,
-                "optimizer": optimizer.state_dict(),
-                "scheduler": scheduler.state_dict(),
-                "scaler": scaler.state_dict(),
                 "best_val_loss": best_val_loss,
                 "epochs_no_improve": epochs_no_improve,
             }
             torch.save(ckpt, Path(args.output_dir) / "checkpoint.pt")
-            if is_main:
-                print(f"  ✓ Checkpoint saved (epoch {epoch+1})")
+            print(f"  ✓ Checkpoint saved (epoch {epoch+1})")
 
-            # Broadcast early-stop decision to all ranks so they all exit together
+            # Broadcast early-stop decision — all ranks must call dist.all_reduce
             stop_flag = torch.tensor([1 if epochs_no_improve >= args.patience else 0],
                                     dtype=torch.int8, device=device)
             dist.all_reduce(stop_flag, op=dist.ReduceOp.SUM)
@@ -366,9 +388,7 @@ def train_loop(rank: int, world_size: int, args):
                 with open(Path(args.output_dir) / "train.log", "a") as lf:
                     lf.write(f"Early stopping at epoch {epoch+1}\n")
                 step_log_file.close()
-                cleanup()
-                return
-            elif stop_flag.item() > 0:
+            if stop_flag.item() > 0:
                 cleanup()
                 return
 
@@ -396,7 +416,6 @@ def main():
     parser.add_argument("--weight-decay",  type=float, default=0.01)
     parser.add_argument("--warmup-ratio",  type=float, default=0.1)
     parser.add_argument("--num-workers",    type=int, default=4)
-    parser.add_argument("--save-interval",  type=int, default=5)
     parser.add_argument("--patience",       type=int, default=3)
     # LoRA params
     parser.add_argument("--lora-rank",     type=int, default=8)

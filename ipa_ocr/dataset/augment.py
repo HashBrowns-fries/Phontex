@@ -2,12 +2,10 @@
 
 import random
 import numpy as np
-import torch
 import cv2
 from PIL import Image, ImageEnhance, ImageFilter
-from typing import Union, Tuple, Optional
+from typing import Tuple, Optional
 import albumentations as A
-from albumentations.pytorch import ToTensorV2
 
 
 def crop_content_bbox(image: np.ndarray, threshold: int = 245, pad: int = 4) -> Optional[Tuple[int, int, int, int]]:

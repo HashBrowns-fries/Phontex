@@ -4,7 +4,6 @@ import editdistance
 from pathlib import Path
 from PIL import Image
 from tqdm import tqdm
-import torch
 from transformers import VisionEncoderDecoderModel, TrOCRProcessor
 from peft import PeftModel
 
@@ -22,7 +21,7 @@ def main():
     with open(DATA_DIR / "labels.json") as f:
         labels = json.load(f)
 
-    print(f"Loading TrOCR+LoRA model...")
+    print("Loading TrOCR+LoRA model...")
     processor = TrOCRProcessor.from_pretrained(MODEL_DIR)
     IPA_TOKENS = ["ˈ", "ˌ", "ː", "ʰ", "̃", "ʷ", "ʲ", "ɥ"]
     processor.tokenizer.add_tokens(IPA_TOKENS)

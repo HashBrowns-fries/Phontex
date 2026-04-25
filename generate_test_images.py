@@ -27,7 +27,7 @@ def create_ipa_image(text: str, output_path: str, font_size: int = 48):
         if not os.path.exists(font_path):
             font_path = "C:/Windows/Fonts/seguiemj.ttf"
         font = ImageFont.truetype(font_path, font_size)
-    except:
+    except Exception:
         font = ImageFont.load_default()
 
     # 绘制文本

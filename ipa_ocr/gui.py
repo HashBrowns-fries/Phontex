@@ -6,7 +6,6 @@ from pathlib import Path
 from PIL import Image, ImageTk
 import threading
 
-from ipa_ocr.engine import IPAOCREngine
 
 
 class IPAOCRGui:
@@ -56,7 +55,7 @@ class IPAOCRGui:
 
         self.image_label = tk.Label(
             self.image_frame,
-            text="点击"选择图像"按钮加载图片",
+            text='点击"选择图像"按钮加载图片',
             bg="#f0f0f0",
             fg="#666666"
         )

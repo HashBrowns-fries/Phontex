@@ -11,7 +11,6 @@ from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 import numpy as np
-import shutil
 
 # ── Config ────────────────────────────────────────────────────────────────────
 NUM_SAMPLES = 10_000          # subset for fast evaluation

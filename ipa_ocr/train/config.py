@@ -1,7 +1,6 @@
 """训练配置"""
 
 from dataclasses import dataclass, field
-from typing import List, Tuple, Optional
 from pathlib import Path
 
 
@@ -117,7 +116,6 @@ def get_default_config() -> TrainConfig:
 def load_config(config_path: str) -> TrainConfig:
     """从文件加载配置"""
     import json
-    from dataclasses import asdict
 
     with open(config_path, "r") as f:
         config_dict = json.load(f)

@@ -1,5 +1,6 @@
 """Benchmark TUM Calamari on TUM cross-domain test set."""
-import json, editdistance
+import json
+import editdistance
 from pathlib import Path
 from tqdm import tqdm
 from calamari_ocr.ocr.predict.predictor import MultiPredictor
@@ -10,9 +11,12 @@ MODEL_PATH = "/home/chenhao/ipa_ocr/ocr-ipa/model/calamari/best.ckpt"
 OUTPUT    = Path("/home/chenhao/ipa_ocr/outputs_benchmark/calamari_xd_cer.json")
 N_SAMPLES = 200
 
-def cer(ref, hyp): return editdistance.eval(ref, hyp) / max(len(ref), 1)
+def cer(ref, hyp):
+    return editdistance.eval(ref, hyp) / max(len(ref), 1)
 
-with open(DATA_DIR / "labels.json") as f: labels = json.load(f)
+
+with open(DATA_DIR / "labels.json") as f:
+    labels = json.load(f)
 
 print("Loading TUM Calamari...")
 predictor = MultiPredictor.from_paths(checkpoints=[str(MODEL_PATH)], auto_update_checkpoints=False)
@@ -28,11 +32,13 @@ for i in tqdm(range(0, len(image_files), batch_size), desc="Calamari (cross-doma
     preds_raw = predictor.predict(params)
     for img_path, pred_obj in zip(batch, preds_raw):
         fname = img_path.name
-        if fname not in labels: continue
+        if fname not in labels:
+            continue
         ref = labels[fname]
         hyp = pred_obj.outputs[0][0].sentence
         d = cer(ref, hyp)
-        total_dist += d; total_len += len(ref)
+        total_dist += d
+        total_len += len(ref)
         results.append({"file":fname,"ref":ref,"pred":hyp,"dist":d})
 
 cer_score = total_dist / max(total_len, 1)

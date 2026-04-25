@@ -1,6 +1,5 @@
 """Benchmark our TrOCR+LoRA model on IPA val set."""
 import json
-import torch
 from pathlib import Path
 from PIL import Image
 from tqdm import tqdm

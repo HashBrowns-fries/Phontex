@@ -1,15 +1,14 @@
 """IPA数据集定义"""
 
-import os
 import json
 from pathlib import Path
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Dict
 import numpy as np
 from PIL import Image
 import torch
 from torch.utils.data import Dataset
 
-from ipa_ocr.utils.characters import char_to_idx, idx_to_char
+from ipa_ocr.utils.characters import char_to_idx
 from ipa_ocr.dataset.augment import get_train_transforms, get_val_transforms
 
 
@@ -202,7 +201,7 @@ class IPAGeneratorDataset(Dataset):
 
         try:
             font = ImageFont.truetype(font_path, 48)
-        except:
+        except Exception:
             font = ImageFont.load_default()
 
         # 测量文本

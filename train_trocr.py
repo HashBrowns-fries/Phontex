@@ -1,7 +1,6 @@
 """TrOCR fine-tuning for IPA OCR — 预训练Vision+GPT2模型直接迁移到IPA字符识别"""
 
 import os
-import sys
 
 # 抑制transformers加载噪声
 os.environ.setdefault("TRANSFORMERS_NO_ADVISORY_WARNINGS", "1")
@@ -12,20 +11,17 @@ import json
 import time
 import argparse
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from torch.cuda.amp import autocast, GradScaler
 from PIL import Image
-import numpy as np
 
 from transformers import (
     TrOCRProcessor,
     VisionEncoderDecoderModel,
     get_linear_schedule_with_warmup,
-    AutoTokenizer,
 )
 from tqdm import tqdm
 

@@ -5,13 +5,10 @@ os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 import json
-import time
 import argparse
 from pathlib import Path
-from typing import List, Dict
 
 import torch
-import torch.nn as nn
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
@@ -197,10 +194,10 @@ def train_loop(rank: int, world_size: int, args):
                 save_path = Path(args.output_dir) / "best_model"
                 model_eval.save_pretrained(save_path)
                 processor.save_pretrained(save_path)
-                print(f"  ✓ Best model saved")
+                print("  ✓ Best model saved")
                 if is_main:
                     with open(Path(args.output_dir) / "train.log", "a") as lf:
-                        lf.write(f"  ✓ Best model saved\n")
+                        lf.write("  ✓ Best model saved\n")
             else:
                 epochs_no_improve += 1
                 print(f"  No improvement ({epochs_no_improve}/{patience})")

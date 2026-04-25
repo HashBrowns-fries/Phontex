@@ -2,11 +2,11 @@
 
 import torch
 import torch.nn as nn
-from typing import Optional, Tuple, List
+from typing import List
 import torch.nn.functional as F
 
 from ipa_ocr.model.modules import CRNNModel, CRNNModelV2, CRNNModelV3, CRNNModelV4, CRNNModelV5
-from ipa_ocr.utils.characters import char_to_idx, idx_to_char, NUM_CLASSES, BLANK_TOKEN
+from ipa_ocr.utils.characters import idx_to_char, NUM_CLASSES
 
 
 class IPAOCRModel(nn.Module):
@@ -87,9 +87,9 @@ class IPAOCRModel(nn.Module):
         """
         if log_probs.dim() == 2:
             log_probs = log_probs.unsqueeze(0)
-            squeeze_output = True
+            _squeeze_output = True
         else:
-            squeeze_output = False
+            _squeeze_output = False
 
         log_probs = log_probs.permute(1, 0, 2)
 

@@ -1,7 +1,6 @@
 """推理模块"""
 
 import torch
-from pathlib import Path
 from typing import Union, List, Tuple, Optional
 import numpy as np
 from PIL import Image
@@ -9,7 +8,6 @@ from PIL import Image
 from ipa_ocr.model import create_model
 from ipa_ocr.dataset.augment import get_val_transforms
 from ipa_ocr.train.config import TrainConfig
-from ipa_ocr.utils.characters import idx_to_char
 
 
 class IPAPredictor:
