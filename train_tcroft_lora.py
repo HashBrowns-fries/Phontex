@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader, DistributedSampler
 from tqdm import tqdm
 from torch.amp import autocast, GradScaler
 from PIL import Image
-from peft import PeftModel, get_peft_model, LoraConfig, TaskType
+from peft import get_peft_model, LoraConfig, TaskType
 
 from transformers import (
     TrOCRProcessor,
@@ -257,7 +257,7 @@ def train_loop(rank: int, world_size: int, args):
     # ── Resume from checkpoint ─────────────────────────────────────────
     start_epoch = 0
     ckpt_path = Path(args.output_dir) / "checkpoint.pt"
-    best_model_path = Path(args.output_dir) / "best_model"
+    merged_path = Path(args.output_dir) / "checkpoint_merged"
     if args.resume and ckpt_path.exists():
         ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
         optimizer.load_state_dict(ckpt["optimizer"])
@@ -267,30 +267,22 @@ def train_loop(rank: int, world_size: int, args):
         best_val_loss = ckpt.get("best_val_loss", float("inf"))
         epochs_no_improve = ckpt.get("epochs_no_improve", 0)
 
-        # Restore model: try checkpoint first, else fall back to best_model/
-        model_state = ckpt.get("model_state", None)
-        if model_state is not None:
-            missing, unexpected = model.module.load_state_dict(model_state, strict=False)
+        # Restore merged model from checkpoint_merged/ (full VisionEncoderDecoderModel)
+        if merged_path.exists():
+            merged_tmp = VisionEncoderDecoderModel.from_pretrained(str(merged_path))
+            missing, unexpected = model.module.load_state_dict(merged_tmp.state_dict(), strict=False)
+            del merged_tmp
             if is_main:
-                print(f"[Resume] Model weights restored from checkpoint ({len(model_state)} tensors)")
+                print("[Resume] Merged model loaded from checkpoint_merged/")
                 if missing:
-                    print(f"         Missing (non-critical if LoRA keys): {missing[:3]}")
-        elif best_model_path.exists():
+                    print(f"         Missing: {missing[:3]}")
+                print(f"[Resume] Resuming from epoch {start_epoch}/{args.num_epochs}")
+                print(f"         best_val_loss={best_val_loss:.4f}, epochs_no_improve={epochs_no_improve}")
+        else:
             if is_main:
-                print("[Resume] No model in checkpoint — loading from best_model/")
-            base_tmp = VisionEncoderDecoderModel.from_pretrained(args.model_name)
-            model_tmp = PeftModel.from_pretrained(base_tmp, str(best_model_path))
-            model_tmp = model_tmp.merge_and_unload()
-            merged_state = {k: v for k, v in model_tmp.state_dict().items()}
-            del model_tmp, base_tmp
-            model.module.load_state_dict(merged_state, strict=False)
-            del merged_state
-            if is_main:
-                print("[Resume] Merged weights loaded from best_model/")
-
-        if is_main:
-            print(f"[Resume] Resuming from epoch {start_epoch}/{args.num_epochs}")
-            print(f"         best_val_loss={best_val_loss:.4f}, epochs_no_improve={epochs_no_improve}")
+                print("[Resume] No merged checkpoint — LoRA starts fresh")
+                print(f"[Resume] Resuming from epoch {start_epoch}/{args.num_epochs}")
+                print(f"         best_val_loss={best_val_loss:.4f}, epochs_no_improve={epochs_no_improve}")
 
     for epoch in range(start_epoch, args.num_epochs):
         train_sampler.set_epoch(epoch)

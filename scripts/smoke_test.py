@@ -3,12 +3,7 @@
 import torch
 import transformers
 import peft
-import PIL
 import fastapi
-import uvicorn
-import pyperclip
-from transformers import VisionEncoderDecoderModel, TrOCRProcessor
-from peft import PeftModel
 
 print("All deps OK")
 print(f"torch={torch.__version__}")
