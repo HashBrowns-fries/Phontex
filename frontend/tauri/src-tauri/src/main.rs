@@ -5,12 +5,10 @@
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use image::GenericImageView;
-use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use std::sync::Arc;
 use std::time::Duration;
 use tauri::{
     image::Image,
@@ -23,13 +21,6 @@ use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut,
 /// App state shared across commands
 struct AppState {
     server_process: Option<std::process::Child>,
-    last_capture: Arc<Mutex<Option<CapturedImage>>>,
-}
-
-struct CapturedImage {
-    width: u32,
-    height: u32,
-    data: Vec<u8>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -42,12 +33,12 @@ async fn capture_and_ocr(app: AppHandle) -> Result<OcrResult, String> {
     println!("[Phontex] Capturing screenshot...");
 
     // Capture screen using `screenshots` crate
-    let captures = screenshots::Screen::all().map_err(|e| format!("screenshots error: {e}"))?;
-    if captures.is_empty() {
+    let all_screens = screenshots::Screen::all().map_err(|e| format!("screenshots error: {e}"))?;
+    if all_screens.is_empty() {
         return Err("No screens found".to_string());
     }
 
-    let screen = &captures[0];
+    let screen = &all_screens[0];
     let capture = screen
         .capture()
         .map_err(|e| format!("capture error: {e}"))?;
@@ -100,8 +91,9 @@ async fn call_ocr_api(path: &PathBuf) -> Result<ApiResponse, String> {
     let b64 = BASE64.encode(&img_bytes);
     let data_url = format!("data:image/png;base64,{b64}");
 
-    // Poll health endpoint until ready or timeout
+    // Poll health endpoint until ready or timeout, with exponential backoff
     let start = std::time::Instant::now();
+    let mut delay_ms = 500;
     loop {
         if start.elapsed() > Duration::from_secs(60) {
             return Err("Server not ready after 60s".to_string());
@@ -116,7 +108,8 @@ async fn call_ocr_api(path: &PathBuf) -> Result<ApiResponse, String> {
                 break;
             }
         }
-        tokio::time::sleep(Duration::from_millis(500)).await;
+        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+        delay_ms = (delay_ms * 2).min(4000);
     }
 
     let resp = client
@@ -209,19 +202,10 @@ async fn start_python_server(app: AppHandle) -> Result<(), String> {
 
     app.manage(AppState {
         server_process: Some(child),
-        last_capture: Arc::new(Mutex::new(None)),
     });
 
     println!("[Phontex] Python server spawned");
     Ok(())
-}
-
-fn stop_python_server(state: tauri::State<'_, AppState>) {
-    if let Some(mut child) = state.server_process.take() {
-        let _ = child.kill();
-        let _ = child.wait();
-        println!("[Phontex] Python server stopped");
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -245,7 +229,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
             let capture =
                 MenuItemBuilder::with_id("capture", "Capture (Ctrl+Shift+I)").build(app)?;
-            let sep = tauri::menu::PredefinedMenuItem::separator(app)?;
             let menu = MenuBuilder::new(app)
                 .item(&capture)
                 .separator()
@@ -254,7 +237,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let _tray = TrayIconBuilder::with_id("main-tray")
                 .icon(Image::from_path("icons/icon.png").unwrap_or_else(|_| {
-                    Image::from_bytes(include_bytes!("../icons/default.png")).unwrap()
+                    Image::from_bytes(include_bytes!("../icons/default.png"))
+                        .expect("failed to load both icon.png and default.png")
                 }))
                 .menu(&menu)
                 .tooltip("IPA OCR — Ctrl+Shift+I to capture")
@@ -269,8 +253,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click { button: tauri::tray::MouseButton::Left, .. } =
-                        event
+                    if let TrayIconEvent::Click {
+                        button: tauri::tray::MouseButton::Left,
+                        ..
+                    } = event
                     {
                         let app = tray.app_handle();
                         let _ = app.emit("do-capture", ());
@@ -281,12 +267,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // ── Global Shortcut ──────────────────────────────────────────────
             let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyI);
             let handle2 = handle.clone();
-            app.global_shortcut().on_shortcut(shortcut, move |_app, _shortcut, event| {
-                if event.state == ShortcutState::Pressed {
-                    println!("[Phontex] Hotkey pressed");
-                    let _ = handle2.emit("do-capture", ());
-                }
-            })?;
+            app.global_shortcut()
+                .on_shortcut(shortcut, move |_app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        println!("[Phontex] Hotkey pressed");
+                        let _ = handle2.emit("do-capture", ());
+                    }
+                })?;
 
             // Emit on hotkey/tray click triggers JS capture via event listener
             // We handle it in Rust directly via the emit below
@@ -311,8 +298,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             Ok(())
         })
-        .on_exit(|_app| {
+        .on_exit(|app| {
             println!("[Phontex] Exiting");
+            if let Some(state) = app.try_state::<AppState>() {
+                if let Some(mut child) = state.server_process.take() {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    println!("[Phontex] Python server stopped");
+                }
+            }
         })
         .run(tauri::generate_context!())
         .map_err(|e| e.into())?;

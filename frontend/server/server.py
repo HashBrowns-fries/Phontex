@@ -16,6 +16,10 @@ import pyperclip
 MODEL_DIR = Path(__file__).parent.parent.parent / "outputs_lora_data2" / "best_model"
 PORT = 8765
 
+# Validate model path at startup
+if not MODEL_DIR.exists():
+    raise RuntimeError(f"[Phontex] Model directory not found: {MODEL_DIR}")
+
 # ── Model (lazy init) ────────────────────────────────────────────────────────
 _model_lock = Lock()
 _model = None
@@ -61,7 +65,7 @@ async def lifespan(app: FastAPI):
 # ── App ─────────────────────────────────────────────────────────────────────
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+    CORSMiddleware, allow_origins=["http://127.0.0.1:8765"], allow_methods=["*"], allow_headers=["*"]
 )
 
 # ── Pydantic schemas ─────────────────────────────────────────────────────────
@@ -113,7 +117,7 @@ async def write_clipboard(req: ClipboardRequest):
     try:
         pyperclip.copy(req.text)
         return {"ok": True}
-    except Exception as e:
+    except Exception as py_err:
         # Fallback: try tkinter
         try:
             import tkinter as tk
@@ -125,7 +129,7 @@ async def write_clipboard(req: ClipboardRequest):
             root.destroy()
             return {"ok": True}
         except Exception:
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=f"clipboard error (pyperclip: {py_err})")
 
 
 # ── Run ─────────────────────────────────────────────────────────────────────

@@ -116,8 +116,16 @@
   <script>
     // Parse IPA text from URL
     const params = new URLSearchParams(window.location.search);
-    const text = params.get('text') || '(empty)';
-    document.getElementById('ipa-text').textContent = decodeURIComponent(text);
+    const raw = params.get('text') || '';
+    let text = '(empty)';
+    if (raw) {
+        try {
+            text = decodeURIComponent(raw);
+        } catch (_) {
+            text = raw;  // fall back to raw value if decoding fails
+        }
+    }
+    document.getElementById('ipa-text').textContent = text;
 
     // Countdown timer
     let remaining = 4;
@@ -137,13 +145,8 @@
 
     timer = setInterval(tick, 1000);
 
-    // Mouse hover cancels auto-close
+    // Mouse hover pauses countdown; no auto-resume to prevent indefinite reopen
     popup.addEventListener('mouseenter', () => clearInterval(timer));
-    popup.addEventListener('mouseleave', () => {
-      remaining = Math.max(1, remaining);
-      countdownEl.textContent = remaining;
-      timer = setInterval(tick, 1000);
-    });
   </script>
 </body>
 </html>
