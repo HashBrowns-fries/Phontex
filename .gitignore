@@ -10,10 +10,7 @@ build/
 venv/
 .conda/
 
-# uv
-uv.lock
-# keep pyproject.toml tracked but not uv.lock if you prefer
-# (uncomment below if you don't commit uv.lock)
+# uv — commit uv.lock for reproducible builds
 # uv.lock
 
 # Data & outputs (large, regenerated)

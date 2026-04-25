@@ -17,7 +17,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["ruff", "pytest"]
-frontend-server = [
+
+[dependency-groups]
+frontend = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
     "pyperclip>=1.9.0",
@@ -28,8 +30,6 @@ frontend-server = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[dependency-groups]
 
 [tool.hatch.build.targets.wheel]
 packages = ["ipa_ocr"]
