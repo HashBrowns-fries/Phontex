@@ -52,6 +52,7 @@ jobs:
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          rustup default stable
 
       - name: Install Node.js
         uses: actions/setup-node@v4
