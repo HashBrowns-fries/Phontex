@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Phontex Result</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      user-select: none;
+    }
+
+    .popup {
+      width: 400px;
+      background: rgba(255, 255, 255, 0.80);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: 18px;
+      box-shadow:
+        0 4px 24px rgba(0,0,0,0.10),
+        0 1px 2px rgba(0,0,0,0.06),
+        inset 0 0 0 1px rgba(255,255,255,0.3);
+      padding: 28px 32px;
+      animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: default;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(16px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(79, 134, 247, 0.90);
+    }
+
+    .copied-badge {
+      font-size: 11px;
+      color: rgba(80, 200, 120, 0.85);
+      font-weight: 500;
+    }
+
+    .ipa-text {
+      font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 22px;
+      line-height: 1.5;
+      color: #1a1a2e;
+      word-break: break-all;
+      min-height: 36px;
+    }
+
+    .divider {
+      margin: 16px 0 12px;
+      border: none;
+      border-top: 1px solid rgba(0,0,0,0.06);
+    }
+
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .shortcut {
+      font-size: 11px;
+      color: rgba(0,0,0,0.3);
+      font-family: 'Consolas', monospace;
+    }
+
+    .close-hint {
+      font-size: 11px;
+      color: rgba(0,0,0,0.25);
+    }
+
+    /* fade out animation */
+    .popup.fade-out {
+      animation: fadeOut 0.4s ease forwards;
+    }
+
+    @keyframes fadeOut {
+      to { opacity: 0; transform: translateY(-8px) scale(0.98); }
+    }
+  </style>
+</head>
+<body>
+  <div class="popup" id="popup">
+    <div class="header">
+      <span class="label">Phontex Result</span>
+      <span class="copied-badge">✓ Copied</span>
+    </div>
+    <div class="ipa-text" id="ipa-text"></div>
+    <hr class="divider" />
+    <div class="footer">
+      <span class="shortcut">Ctrl+Shift+I</span>
+      <span class="close-hint">Auto-close in <span id="countdown">4</span>s</span>
+    </div>
+  </div>
+
+  <script>
+    // Parse IPA text from URL
+    const params = new URLSearchParams(window.location.search);
+    const text = params.get('text') || '(empty)';
+    document.getElementById('ipa-text').textContent = decodeURIComponent(text);
+
+    // Countdown timer
+    let remaining = 4;
+    const countdownEl = document.getElementById('countdown');
+    const popup = document.getElementById('popup');
+    let timer;
+
+    function tick() {
+      remaining--;
+      countdownEl.textContent = remaining;
+      if (remaining <= 0) {
+        clearInterval(timer);
+        popup.classList.add('fade-out');
+        setTimeout(() => window.close(), 400);
+      }
+    }
+
+    timer = setInterval(tick, 1000);
+
+    // Mouse hover cancels auto-close
+    popup.addEventListener('mouseenter', () => clearInterval(timer));
+    popup.addEventListener('mouseleave', () => {
+      remaining = Math.max(1, remaining);
+      countdownEl.textContent = remaining;
+      timer = setInterval(tick, 1000);
+    });
+  </script>
+</body>
+</html>

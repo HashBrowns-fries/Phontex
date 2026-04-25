@@ -1,0 +1,32 @@
+{
+  "$schema": "https://schemas.tauri.app/config/2/capability",
+  "identifier": "main-capability",
+  "description": "Main window capabilities",
+  "windows": ["main", "result"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "core:window:allow-center",
+    "core:window:allow-set-size",
+    "core:window:allow-set-position",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-set-decorations",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-minimize",
+    "core:tray:default",
+    "core:tray:allow-set-icon",
+    "core:menu:default",
+    "core:event:default",
+    "core:event:allow-emit",
+    "core:event:allow-listen",
+    "global-shortcut:default",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "clipboard-manager:default",
+    "clipboard-manager:allow-write-text",
+    "clipboard-manager:allow-read-text",
+    "shell:default",
+    "notification:default"
+  ]
+}

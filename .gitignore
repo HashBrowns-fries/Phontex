@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+.conda/
+
+# uv
+uv.lock
+# keep pyproject.toml tracked but not uv.lock if you prefer
+# (uncomment below if you don't commit uv.lock)
+# uv.lock
+
+# Data & outputs (large, regenerated)
+data/
+data2/
+data2_small/
+data2_test/
+data3/
+tum_data/
+outputs/
+outputs_benchmark/
+# outputs_lora_data2/ — committed: contains trained LoRA model (16MB)
+outputs_lora_data3/
+outputs_lora_data3_ddp/
+outputs_lora_small/
+outputs_tcroft/
+outputs_tcroft_ddp/
+outputs_v2/
+nan_batch_*.pt
+
+# Model weights (downloaded/generated)
+*.pt
+*.pth
+*.h5
+*.onnx
+
+# Tauri
+frontend/tauri/src-tauri/target/
+frontend/tauri/node_modules/
+frontend/tauri/dist/
+*.asar
+
+# Temp files
+*.tmp
+*.log
+*.swp
+*.swo
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Test images
+test_images/
+
+# Rust/Cargo
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# TUM ocr-ipa submodule (cloned separately)
+ocr-ipa/

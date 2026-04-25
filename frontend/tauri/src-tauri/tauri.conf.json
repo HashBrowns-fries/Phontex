@@ -1,0 +1,53 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Phontex",
+  "identifier": "com.phontex.app",
+  "version": "1.0.0",
+  "build": {
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../web",
+    "devtools": true
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "IPA OCR",
+        "width": 800,
+        "height": 600,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "menuOnLeftClick": false,
+      "id": "main-tray"
+    },
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "global-shortcut": {},
+    "clipboard-manager": {},
+    "shell": {
+      "open": true
+    },
+    "notification": {
+      "all": true
+    }
+  }
+}
