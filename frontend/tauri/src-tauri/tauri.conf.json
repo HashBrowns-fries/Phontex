@@ -5,8 +5,7 @@
   "version": "1.0.0",
   "build": {
     "devUrl": "http://localhost:1420",
-    "frontendDist": "../web",
-    "devtools": true
+    "frontendDist": "../web"
   },
   "app": {
     "windows": [
@@ -16,7 +15,8 @@
         "width": 800,
         "height": 600,
         "resizable": true,
-        "center": true
+        "center": true,
+        "devtools": true
       }
     ],
     "trayIcon": {

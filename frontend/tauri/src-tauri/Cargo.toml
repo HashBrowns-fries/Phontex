@@ -10,7 +10,7 @@ name = "phontex_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = "2.5"
+tauri-build = { version = "2.5", features = [] }
 
 [[bin]]
 name = "phontex"
